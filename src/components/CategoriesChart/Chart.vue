@@ -25,9 +25,9 @@ const plugins = reactive(options.plugins);
     <div v-if="!store.isLoaded">Loading...</div>
     <div v-else class="chart-container">
         <div class="controls" v-if="storeOptions.periodLabel">
-            <button  @click="storeOptions.period++">🡰</button>
+            <button  @click="storeOptions.period++">&lt;</button>
             <span class="title">{{ storeOptions.periodLabel }}</span>
-            <button @click="storeOptions.period--">🡲</button>
+            <button @click="storeOptions.period--">&gt;</button>
         </div>
         <div class="filler" v-else></div>
         <Doughnut id="categories" :data="chartData" :options="chartOptions" :plugins="plugins" />

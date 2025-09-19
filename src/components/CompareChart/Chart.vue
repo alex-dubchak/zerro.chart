@@ -3,14 +3,14 @@
   <div v-else class="chart-container">
    <div class="controls-container">
       <div class="controls" v-if="storeOptions.period1Label">
-        <button @click="storeOptions.period1++">🡰</button>
+        <button @click="storeOptions.period1++">&lt;</button>
         <span class="title">{{ storeOptions.period1Label }}</span>
-        <button @click="storeOptions.period1--">🡲</button>
+        <button @click="storeOptions.period1--">&gt;</button>
       </div>
       <div class="controls" v-if="storeOptions.period2Label">
-        <button @click="storeOptions.period2++">🡰</button>
+        <button @click="storeOptions.period2++">&lt;</button>
         <span class="title">{{ storeOptions.period2Label }}</span>
-        <button @click="storeOptions.period2--">🡲</button>
+        <button @click="storeOptions.period2--">&gt;</button>
       </div>
     </div>
     <Bar id="comapre" :data="chartData" :options="chartOptions" :plugins="plugins" />

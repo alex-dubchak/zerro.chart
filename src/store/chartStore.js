@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import chartDataService from '../services/chartDataService';
 import dayjs from 'dayjs';
+import { getRate } from './rates';
 
 export const useChartStore = defineStore('chartData', {
   state: () => ({
@@ -38,6 +39,7 @@ export const useChartStore = defineStore('chartData', {
       periodLabel: null,
     },
     resultAcount: 'eea8547c-fd6a-4177-a813-43f006fe1fb5',
+    convertRates: true,
     isLoaded: false,
   }),
 
@@ -458,8 +460,8 @@ export const useChartStore = defineStore('chartData', {
 
         const amount = monthData.data[category] || 0;
 
-        const actualIncome = this.convertToResult(income, incomeAccount)
-        const actualOutcome = this.convertToResult(outcome, outcomeAccount)
+        const actualIncome = this.convertToResult(income, incomeAccount, date)
+        const actualOutcome = this.convertToResult(outcome, outcomeAccount, date)
 
         monthData.income += actualIncome;
         monthData.outcome += actualOutcome;
@@ -562,11 +564,14 @@ export const useChartStore = defineStore('chartData', {
       console.debug('Active accounts', totalBalance);
       return totalBalance;
     },
-    convertToResult(amount, sourceAccount) {
+    convertToResult(amount, sourceAccount, date) {
       const sourceInstument = this.instruments[this.accounts[sourceAccount].instrument];
       const instrument = this.instruments[this.accounts[this.resultAcount].instrument];
 
-      return amount * sourceInstument.rate / instrument.rate;
+      const sourceRate = !this.convertRates ? sourceInstument.rate: (getRate(sourceInstument.shortTitle, date) || sourceInstument.rate);
+      const targetRate = !this.convertRates ? instrument.rate: (getRate(instrument.shortTitle, date) || instrument.rate);
+
+      return amount * sourceRate / targetRate;
     },
     getTopCategories() {
       return {
