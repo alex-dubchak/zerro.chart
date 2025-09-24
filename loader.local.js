@@ -2,7 +2,7 @@ import { initializeApp } from './utils.js';
 
 
 let lastUrl = location.href;
-const scriptUrl = 'https://alex-dubchak.github.io/zerro.chart';
+const scriptUrl = 'http://localhost:4173';
 
 new MutationObserver(() => {
     const currentUrl = location.href;
