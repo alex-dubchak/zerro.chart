@@ -438,7 +438,10 @@ export const useChartStore = defineStore('chartData', {
           deleted,
         } = transaction;
         const month = dayjs(date).startOf('month').valueOf()
-        if (income && outcome || deleted || month < this.summaryChartOptions.dataStart) continue; // Skip transactions if transfer or deleted
+        if (income && outcome && !(this.accounts[incomeAccount]?.type == 'debt' || this.accounts[outcomeAccount]?.type == 'debt') || deleted || month < this.summaryChartOptions.dataStart) continue; // Skip transactions if transfer or deleted
+        // if (this.accounts[incomeAccount]?.type == 'debt' || this.accounts[outcomeAccount]?.type == 'debt') {
+        //   continue; // Skip debt account transactions
+        // }
 
         if (!result[month]) {
           result[month] = {
@@ -490,7 +493,10 @@ export const useChartStore = defineStore('chartData', {
       // calculate total by reducing current total by each month's save
       let total = this.getCurrentTotal();
       Object.keys(sortedResult).reverse()
-        .forEach(k => sortedResult[k].total = total -= sortedResult[k].save);
+        .forEach(k => {
+          sortedResult[k].total = total;
+          total -= sortedResult[k].save
+        });
 
       return sortedResult;
     },
@@ -558,7 +564,7 @@ export const useChartStore = defineStore('chartData', {
       const $this = this;
       const totalBalance = Object.values(this.accounts)
         .reduce((sum, account) =>
-          sum + (account.archive ? 0 : $this.convertToResult(account.balance, account.id))
+          sum + (account.archive /*||account.type === 'debt' */ ? 0 : $this.convertToResult(account.balance, account.id))
           , 0
         );
       console.debug('Active accounts', totalBalance);

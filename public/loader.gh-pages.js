@@ -1,13 +1,19 @@
-import { ensureAppRoot, ensureScript, ensureStyle, waitForElement } from './utils.js';
+import { initializeApp } from './utils.js';
 
-console.debug('Waiting for container element to be available');
-const rootEl = '.container';
 
-waitForElement(rootEl, () => {
-    console.debug('Container element found, proceeding with app initialization');
-    ensureAppRoot(rootEl);
+let lastUrl = location.href;
+const scriptUrl = 'https://alex-dubchak.github.io/zerro.chart';
 
-    ensureScript('https://alex-dubchak.github.io/zerro.chart/assets/index.js')
-    ensureStyle('https://alex-dubchak.github.io/zerro.chart/assets/index.css');
+new MutationObserver(() => {
+    const currentUrl = location.href;
+    if (currentUrl !== lastUrl) {
+        lastUrl = currentUrl;
+        if (currentUrl == 'https://zerro.app/review') {
+            initializeApp(scriptUrl);
+        }
+    }
+}).observe(document, { subtree: true, childList: true });
 
-});
+console.log('zerro.app Loader script initialized');
+
+initializeApp(scriptUrl);

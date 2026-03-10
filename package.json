@@ -5,9 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite --cors",
-    "build": "vite build",
+    "build": "vite build && cp src/utils.js dist/",
     "preview": "vite preview",
-    "predeploy": "vite build --base=/zerro.chart/",
+    "predeploy": "vite build --base=/zerro.chart/ && cp src/utils.js dist/",
     "deploy": "gh-pages -d dist"
   },
   "dependencies": {

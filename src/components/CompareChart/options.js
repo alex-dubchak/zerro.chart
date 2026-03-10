@@ -15,7 +15,6 @@ export const options = {
                 labels: {
                     // This generates the text that appears in the legend
                     generateLabels: function (chart) {
-                        console.log("generateLabels called!");
                         // Get the default legend items
                         const original = ChartJS.defaults.plugins.legend.labels.generateLabels(chart);
 

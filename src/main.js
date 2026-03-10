@@ -9,7 +9,6 @@ function runApp() {
   createApp(App).use(pinia).mount('#app')
 }
 
-runApp()
+window.runZerroChartApp = runApp;
 
 export { runApp }
-
