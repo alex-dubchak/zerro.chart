@@ -1,7 +1,7 @@
 import { ensureAppRoot, ensureScript, ensureStyle, waitForElement } from './utils.js';
 
 console.debug('Waiting for container element to be available');
-const rootEl = '.container';
+const rootEl = 'div[role="presentation"]';
 
 waitForElement(rootEl, () => {
     console.debug('Container element found, proceeding with app initialization');
