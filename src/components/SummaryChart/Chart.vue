@@ -9,7 +9,8 @@
 </template>
 
 <script setup>
-import { reactive, defineProps } from 'vue';
+import { reactive, defineProps, watch } from 'vue';
+import chartDataService from '../../services/chartDataService';
 import { Bar } from 'vue-chartjs'
 import { Chart as ChartJS, Title, Tooltip, Legend, BarElement, LineElement, PointElement, CategoryScale, LinearScale, Colors } from 'chart.js'
 import { useChartStore } from '../../store/chartStore'
@@ -18,6 +19,8 @@ import { options } from './options'
 
 ChartJS.register(Title, Tooltip, Legend, BarElement, LineElement, PointElement, CategoryScale, LinearScale, Colors)
 const store = useChartStore();
+
+watch(() => store.summaryChartOptions.period, (period) => chartDataService.setSummaryPeriod(period));
 
 options.options.plugins.legend.onClick = (e, legendItem, legend) => {
     const index = legendItem.datasetIndex

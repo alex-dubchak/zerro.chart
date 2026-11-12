@@ -67,6 +67,13 @@ onMounted(async () => {
   grid-template-rows: repeat(auto-fit, auto);
   gap: 1rem;
   padding: 1rem;
+  box-sizing: border-box;
+  /* The host (zerro.app) container is overflow:hidden with a fixed height,
+     so we provide our own scroll container. */
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .row {

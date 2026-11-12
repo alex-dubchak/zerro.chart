@@ -3,6 +3,8 @@ import chartDataService from '../services/chartDataService';
 import dayjs from 'dayjs';
 import { getRate } from './rates';
 
+const TOP_TRANSACTIONS = 5;
+
 export const useChartStore = defineStore('chartData', {
   state: () => ({
     transactions: [],
@@ -12,7 +14,7 @@ export const useChartStore = defineStore('chartData', {
     instruments: {},
     data: {},
     summaryChartOptions: {
-      period: 12,
+      period: chartDataService.getSummaryPeriod() || 12,
       dataStart: dayjs('2022-01-01').valueOf(),
       hiddenCategories: [],
     },
@@ -274,28 +276,40 @@ export const useChartStore = defineStore('chartData', {
         cubicInterpolationMode: 'monotone',
       };
 
-      var totals = this.getTotalsByCategories(Object.entries(state.data));
-      const categories = Object.entries(state.topCategories).sort(([a], [b]) => totals[b] - totals[a]);
       const data = Object.entries(state.data).filter(([month]) => {
         return +month >= dayjs().subtract(state.summaryChartOptions.period, 'month')
       });
+      // Sort categories by their amount in the last displayed month (biggest first);
+      // ties (e.g. zero in the last month) fall back to the period total.
+      // Missing values count as 0 so the comparator never returns NaN.
+      const lastMonth = data.at(-1)?.[1].data || {};
+      const totals = this.getTotalsByCategories(data);
+      const categories = Object.entries(state.topCategories).sort(([a], [b]) =>
+        ((lastMonth[b] || 0) - (lastMonth[a] || 0)) || ((totals[b] || 0) - (totals[a] || 0))
+      );
       for (const [month, entry] of data) {
         // Add month to labels
         result.labels.push(dayjs(+month).format('YYYY-MM'));
 
         // Add income dataset
-        this.getDataSet(result, 'income', {
+        const incomeDs = this.getDataSet(result, 'income', {
           ...line,
           label: 'Income',
           stack: 'income',
-        }).data.push(this.normalizeValue(entry.income));
+          details: [],
+        });
+        incomeDs.data.push(this.normalizeValue(entry.income));
+        incomeDs.details.push(entry.txIncome);
 
         // Add expence dataset
-        this.getDataSet(result, 'expense', {
+        const expenseDs = this.getDataSet(result, 'expense', {
           ...line,
           label: 'Expense',
           stack: 'expense',
-        }).data.push(this.normalizeValue(entry.outcome));
+          details: [],
+        });
+        expenseDs.data.push(this.normalizeValue(entry.outcome));
+        expenseDs.details.push(entry.txExpense);
 
         // Add save dataset
         this.getDataSet(result, 'save', {
@@ -327,11 +341,14 @@ export const useChartStore = defineStore('chartData', {
         let expense = 0;
         for (const [categoryId, { title }] of categories) {
           const value = this.getValue(entry.data[categoryId] || 0, categoryId);
-          this.getDataSet(result, categoryId, {
+          const categoryDs = this.getDataSet(result, categoryId, {
             label: title,
             stack: 'categories',
             tag: categoryId,
-          }).data.push(this.normalizeValue(value));
+            details: [],
+          });
+          categoryDs.data.push(this.normalizeValue(value));
+          categoryDs.details.push(value ? entry.txByCategory[categoryId] : []);
           expense += +value;
         }
 
@@ -419,6 +436,11 @@ export const useChartStore = defineStore('chartData', {
       this.instruments = await chartDataService.getInstruments();
       this.topCategories = this.getTopCategories();
       this.resultAcount = chartDataService.getResultAccount() || this.resultAcount;
+      if (!this.accounts[this.resultAcount]) {
+        const fallback = Object.values(this.accounts).find(a => !a.archive) || Object.values(this.accounts)[0];
+        console.warn('Result account not found, falling back to', fallback?.id);
+        this.resultAcount = fallback?.id;
+      }
       console.debug('Top categories', this.resultAcount);
       this.data = this.getAllData();
       //this.monthChartOptions.period = Object.entries(this.data).at(-1)[0];
@@ -449,6 +471,8 @@ export const useChartStore = defineStore('chartData', {
             data: {},
             dataIn: {},
             dataOut: {},
+            txByCategory: {}, // category -> expense transactions (trimmed to top N below)
+            txIncome: [],
           };
         }
 
@@ -469,6 +493,17 @@ export const useChartStore = defineStore('chartData', {
 
         monthData.data[category] = amount + actualOutcome;
 
+        const txInfo = {
+          date,
+          title: transaction.payee?.trim() || transaction.comment?.trim() || '—',
+        };
+        if (outcome) {
+          (monthData.txByCategory[category] ||= []).push({ ...txInfo, amount: actualOutcome });
+        }
+        if (income) {
+          monthData.txIncome.push({ ...txInfo, amount: actualIncome });
+        }
+
         if (outcome) {
           const outAccount = monthData.dataOut[outcomeAccount] ||= {};
           const outAccountCategoryAmount = outAccount[category] || 0;
@@ -487,10 +522,24 @@ export const useChartStore = defineStore('chartData', {
           .sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
       );
 
-      // calculate total by reducing current total by each month's save
+      // Keep only the top transactions per category / income / all expenses
+      const byAmount = (a, b) => b.amount - a.amount;
+      for (const monthData of Object.values(sortedResult)) {
+        monthData.txExpense = Object.values(monthData.txByCategory)
+          .flat().sort(byAmount).slice(0, TOP_TRANSACTIONS);
+        for (const [category, list] of Object.entries(monthData.txByCategory)) {
+          monthData.txByCategory[category] = list.sort(byAmount).slice(0, TOP_TRANSACTIONS);
+        }
+        monthData.txIncome = monthData.txIncome.sort(byAmount).slice(0, TOP_TRANSACTIONS);
+      }
+
+      // Total = balance at the END of each month: the latest month ends at the
+      // current balance; going back, subtract the later month's save.
       let total = this.getCurrentTotal();
-      Object.keys(sortedResult).reverse()
-        .forEach(k => sortedResult[k].total = total -= sortedResult[k].save);
+      Object.keys(sortedResult).reverse().forEach(k => {
+        sortedResult[k].total = total;
+        total -= sortedResult[k].save;
+      });
 
       return sortedResult;
     },
@@ -565,6 +614,11 @@ export const useChartStore = defineStore('chartData', {
       return totalBalance;
     },
     convertToResult(amount, sourceAccount, date) {
+      if (!amount) return 0;
+      if (!this.accounts[sourceAccount]) {
+        console.warn('Unknown account, skipping conversion', sourceAccount);
+        return 0;
+      }
       const sourceInstument = this.instruments[this.accounts[sourceAccount].instrument];
       const instrument = this.instruments[this.accounts[this.resultAcount].instrument];
 
